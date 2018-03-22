@@ -27,7 +27,7 @@ void setup() {
 	Serial.println(WiFi.localIP());
 
 	//HttpResponse response = Esp8266Http::Post(HttpRequest("192.168.178.26", 80, "/api.php", {}, String("ver=1.1")));
-	HttpResponse response = Esp8266Http::Post(HttpRequest("http://192.168.178.26:80/api.php?ver=1.1", std::map<String, String>(), String("ver=1.1")));
+	HttpResponse response = Esp8266Http::Post(HttpRequest(HttpRequest::RequestType::POST, "http://192.168.178.26:80/api.php?ver=1.1", std::map<String, String>()));
 }
 
 void loop() {

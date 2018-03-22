@@ -153,14 +153,27 @@ HttpResponse Esp8266Http::Get(HttpRequest request)
 
 HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 {
+#ifdef _DEBUG
+	Serial.print("[Esp8266Http]: Making HTTP ");
+	if(request.Type == HttpRequest::POST)
+		Serial.print("POST");
+	else
+		Serial.print("GET");
+	Serial.println(" request to "); 
+	Serial.println("\tHost: " + request.Host);
+	Serial.println("\tPort: " + String(request.Port));
+	Serial.println("\tPath: " + request.Path);
+	Serial.println("\tQuery: " + request.QueryString);
+#endif
+
 	WiFiClient client;
 	if (!client.connect(request.Host.c_str(), request.Port))
 	{
-		Serial.println("[Esp8266Http]: Host " + request.Host + " (Port: " + request.Port + ") unreachable");
+		Serial.println("[Esp8266Http]: Host " + request.Host + " (Port: " + String(request.Port) + ") unreachable");
 		return HttpResponse();
 	}
 
-	if (request.Type == 1)
+	if (request.Type == HttpRequest::POST)
 	{
 		client.print(String("POST ") + request.Path + " HTTP/1.1\r\n");
 	}
@@ -171,11 +184,14 @@ HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 	for (std::pair<const String, String> headerPair : request.Headers)
 	{
 		client.print(headerPair.first + ": " + headerPair.second + "\r\n");
+#ifdef _DEBUG
+		Serial.println(headerPair.first + ": " + headerPair.second);
+#endif
 	}
 
 	client.print("Connection: close\r\n\r\n");
 
-	if (request.Type == 1)
+	if (request.Type == HttpRequest::POST)
 	{
 		client.print(request.QueryString);
 	}
@@ -193,11 +209,14 @@ HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 
 	HttpResponse httpResponse;
 
+	// HTTP/1.1 200 OK
+	// HTTP/1.1 500 Internal Server Error
 	String responseStatusCode = client.readStringUntil('\r');
-	httpResponse.StatusCode = ParseResponse(responseStatusCode);
+	int httpVerIndex = responseStatusCode.indexOf(' '); // HTTP/1.1
+	httpResponse.StatusCode = responseStatusCode.substring(httpVerIndex, httpVerIndex + 4).toInt();
 
 	#ifdef _DEBUG
-	Serial.println("[Esp8266Http]: Response code: " + httpResponse.StatusCode);
+	Serial.println("[Esp8266Http]: Response code: " + String(httpResponse.StatusCode));
 	#endif
 
 	while (client.available())
@@ -221,21 +240,4 @@ HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 	#endif
 	client.stop();
 	return httpResponse;
-}
-
-
-String Esp8266Http::ParseResponse(String response)
-{
-	// HTTP/1.1 200 OK
-	// HTTP/1.1 500 Internal Server Error
-	int maxIndex = response.length() - 1;
-
-	for (int i = 0; i <= maxIndex; i++)
-	{
-		if (response.charAt(i) == ' ' || i == maxIndex)
-		{
-			return response.substring(i + 1, i + 1 + 3);
-		}
-	}
-	return "";
 }

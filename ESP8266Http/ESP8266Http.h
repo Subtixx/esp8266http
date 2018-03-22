@@ -17,8 +17,14 @@
 
 struct HttpRequest
 {
+	enum RequestType
+	{
+		GET = 0,
+		POST
+	};
+
 private:
-	HttpRequest(int type, String host, int port, String path, std::map<String, String> headers, String body, int timeout = 5000) :
+	HttpRequest(RequestType type, String host, int port, String path, std::map<String, String> headers, String body, int timeout = 5000) :
 		Type(type),
 		Host(host),
 		Port(port),
@@ -27,9 +33,9 @@ private:
 		Headers(headers),
 		QueryString(body)
 	{
-		AddHeader(String("User-Agent"), String("Esp8266Http/1.0.0"));
+		AddHeader(String("User-Agent"), String("ESP8266Http/1.0.0"));
 		AddHeader(String("Accept"), String("*/*"));
-		if (type == 1)
+		if (type == POST)
 		{
 			AddHeader("Content-Type", "application/x-www-form-urlencoded");
 			AddHeader("Content-Length", String(QueryString.length()));
@@ -103,21 +109,26 @@ private:
 		Serial.println("Path: " + path);
 
 		if (body != "")
-			Serial.println("Body: " + body);
+			Serial.println("Query: " + body);
 #endif
 
 		Host = host;
 		Path = path;
 		Port = port;
-		if (body != "")
+		if (body != "") {
 			QueryString = body;
+			if(Headers.find("Content-Length") != Headers.end())
+				Headers["Content-Length"] = String(QueryString.length());
+			else
+				Headers.insert(std::pair<String, String>("Content-Length", String(QueryString.length())));
+		}
 	}
 
 public:
 	/**
 	 * \brief 0 = GET, 1 = POST
 	 */
-	const int Type;
+	const RequestType Type;
 	String Host;
 	int Port;
 	String Path;
@@ -130,23 +141,23 @@ public:
 	String QueryString;
 
 	HttpRequest(String host, int port, String path, int timeout = 5000) :
-		HttpRequest(0, host, port, path, {}, "", timeout)
+		HttpRequest(GET, host, port, path, {}, "", timeout)
 	{
 	}
 
 	HttpRequest(String host, int port, String path, std::map<String, String> headers, int timeout = 5000) :
-		HttpRequest(0, host, port, path, headers, "", timeout)
+		HttpRequest(GET, host, port, path, headers, "", timeout)
 	{
 	}
 
 
 	HttpRequest(String host, int port, String path, std::map<String, String> headers, String body, int timeout = 5000) :
-		HttpRequest(1, host, port, path, headers, body, timeout)
+		HttpRequest(POST, host, port, path, headers, body, timeout)
 	{
 	}
 
-	HttpRequest(String url, std::map<String, String> headers, String body, int timeout = 5000) : 
-		HttpRequest(1, "", 80, "", headers, body, timeout)
+	HttpRequest(RequestType type, String url, std::map<String, String> headers, int timeout = 5000) :
+		HttpRequest(type, "", 80, "", headers, "", timeout)
 	{
 		ParseUrl(url);
 	}	
@@ -170,7 +181,7 @@ struct HttpResponse
 	 * \brief An HTTP Status code (-1 when Response is invalid)
 	 * \see https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 	 */
-	String StatusCode;
+	int StatusCode;
 
 	/**
 	 * \brief The body of the response
@@ -196,7 +207,6 @@ struct HttpResponse
 
 class Esp8266Http
 {
-	static String ParseResponse(String response);
 	static HttpResponse MakeRequest(HttpRequest request);
 
 public:
