@@ -42,6 +42,10 @@ private:
 		}
 	}
 
+	/**
+	 * \brief Parses a URL to Host, Port, Path and QueryString
+	 * (eg. http://192.168.178.26:8080/api.php?username=root&password=123456)
+	 */
 	void ParseUrl(String url)
 	{
 		String host;
@@ -122,7 +126,7 @@ private:
 		Port = port;
 		if (body != "") {
 			QueryString = body;
-			if(Headers.find("Content-Length") != Headers.end())
+			if(Headers.count("Content-Length") == 1)
 				Headers["Content-Length"] = String(QueryString.length());
 			else
 				Headers.insert(std::pair<String, String>("Content-Length", String(QueryString.length())));
@@ -134,10 +138,30 @@ public:
 	 * \brief 0 = GET, 1 = POST
 	 */
 	const RequestType Type;
+
+	/**
+	 * \brief The hostname to connect to
+	 */
 	String Host;
+
+	/**
+	 * \brief The port to connect to (HTTP = 80, HTTPS = 443)
+	 */
 	int Port;
+
+	/**
+	 * \brief The path to make the request to.
+	 */
 	String Path;
+
+	/**
+	 * \brief The timeout in Milliseconds
+	 */
 	const int Timeout;
+
+	/**
+	 * \brief Map containing request headers
+	 */
 	std::map<String, String> Headers;
 
 	/**
@@ -169,7 +193,7 @@ public:
 
 	void AddHeader(String key, String value)
 	{
-		if (Headers.find(key) != Headers.end())
+		if (Headers.count(key) == 1)
 		{
 #ifdef _DEBUG
 			Serial.println("[Esp8266Http] Header " + key + " is added twice.");
