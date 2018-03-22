@@ -9,39 +9,155 @@
 
 #include <map>
 
+#ifdef ARDUINO_ARCH_ESP8266
+#include <ESP8266WiFi.h>
+#else
+#error Unsupported architecture.
+#endif
+
 struct HttpRequest
 {
-	const String Host;
-	const int Port;
-	const String Path;
+private:
+	HttpRequest(int type, String host, int port, String path, std::map<String, String> headers, String body, int timeout = 5000) :
+		Type(type),
+		Host(host),
+		Port(port),
+		Path(path),
+		Timeout(timeout),
+		Headers(headers),
+		QueryString(body)
+	{
+		AddHeader(String("User-Agent"), String("Esp8266Http/1.0.0"));
+		AddHeader(String("Accept"), String("*/*"));
+		if (type == 1)
+		{
+			AddHeader("Content-Type", "application/x-www-form-urlencoded");
+			AddHeader("Content-Length", String(QueryString.length()));
+		}
+	}
+
+	void ParseUrl(String url)
+	{
+		String host;
+		int port;
+		String path;
+		String body;
+
+		// http://google.com:8080/api/request/1
+		if (url.startsWith("http://"))
+			url = url.substring(7, url.length());
+
+		if (url.startsWith("https://"))
+			url = url.substring(8, url.length());
+
+		// google.com:8080/api/request/1
+#ifdef _DEBUG
+		Serial.println("Url: " + url);
+#endif
+
+		// Find first /
+		int indexOfFirstSlash = url.indexOf("/");
+
+		if (url.indexOf(":") != -1)
+		{
+			// google.com:8080
+			String urlWithPort = url.substring(0, indexOfFirstSlash);
+
+			// 8080
+			port = urlWithPort.substring(urlWithPort.indexOf(":") + 1, urlWithPort.length()).toInt();
+
+			// google.com
+			host = urlWithPort.substring(0, urlWithPort.indexOf(":"));
+
+			// /api/request/1
+			path = url.substring(indexOfFirstSlash, url.length());
+		}
+		else
+		{
+			//google.com/api/request/1
+
+			// google.com
+			host = url.substring(0, indexOfFirstSlash);
+
+			port = 80;
+
+			// /api/request/1
+			path = url.substring(indexOfFirstSlash, url.length());
+		}
+
+		// /api/request?test=t
+		if(path.indexOf("?") != -1)
+		{
+			int queryIndex = path.indexOf("?");
+
+			// ?test=t
+			body = path.substring(queryIndex+1, path.length());
+
+			// /api/request
+			path = path.substring(0, queryIndex);
+		}
+
+#ifdef _DEBUG
+		Serial.println("Host: " + host);
+		Serial.println("Port: " + String(port));
+		Serial.println("Path: " + path);
+
+		if (body != "")
+			Serial.println("Body: " + body);
+#endif
+
+		Host = host;
+		Path = path;
+		Port = port;
+		if (body != "")
+			QueryString = body;
+	}
+
+public:
+	/**
+	 * \brief 0 = GET, 1 = POST
+	 */
+	const int Type;
+	String Host;
+	int Port;
+	String Path;
 	const int Timeout;
 	std::map<String, String> Headers;
 
+	/**
+	 * \brief Contains either the post body, or the query string for GET requests.
+	 */
+	String QueryString;
+
 	HttpRequest(String host, int port, String path, int timeout = 5000) :
-		Host(host),
-		Port(port),
-		Path(path),
-		Timeout(timeout),
-		Headers({})
+		HttpRequest(0, host, port, path, {}, "", timeout)
 	{
-		Headers.insert(std::pair<String, String>(String("User-Agent"), String("Esp8266Http/1.0.0")));
-		Headers.insert(std::pair<String, String>(String("Accept"), String("*/*")));
 	}
 
 	HttpRequest(String host, int port, String path, std::map<String, String> headers, int timeout = 5000) :
-		Host(host),
-		Port(port),
-		Path(path),
-		Timeout(timeout),
-		Headers(headers)
+		HttpRequest(0, host, port, path, headers, "", timeout)
 	{
 	}
 
+
+	HttpRequest(String host, int port, String path, std::map<String, String> headers, String body, int timeout = 5000) :
+		HttpRequest(1, host, port, path, headers, body, timeout)
+	{
+	}
+
+	HttpRequest(String url, std::map<String, String> headers, String body, int timeout = 5000) : 
+		HttpRequest(1, "", 80, "", headers, body, timeout)
+	{
+		ParseUrl(url);
+	}	
+
 	void AddHeader(String key, String value)
 	{
-		if(Headers.find(key) != Headers.end())
+		if (Headers.find(key) != Headers.end())
 		{
+#ifdef _DEBUG
 			Serial.println("[Esp8266Http] Header " + key + " is added twice.");
+#endif
 			return;
 		}
 		Headers.insert(std::pair<String, String>(key, value));
@@ -50,20 +166,30 @@ struct HttpRequest
 
 struct HttpResponse
 {
+	/**
+	 * \brief An HTTP Status code (-1 when Response is invalid)
+	 * \see https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+	 */
 	String StatusCode;
+
+	/**
+	 * \brief The body of the response
+	 */
 	String Body;
+
+	/**
+	 * \brief All response headers
+	 */
 	std::map<String, String> Headers;
 
-	HttpResponse(String body, std::map<String, String> headers) :
+	HttpResponse(int statusCode, String body, std::map<String, String> headers) :
+		StatusCode(statusCode),
 		Body(body),
 		Headers(headers)
 	{
 	}
 
-	HttpResponse() :
-		StatusCode(-1),
-		Body(""),
-		Headers({})
+	HttpResponse() : HttpResponse(-1, "", {})
 	{
 	}
 };
@@ -71,16 +197,22 @@ struct HttpResponse
 class Esp8266Http
 {
 	static String ParseResponse(String response);
+	static HttpResponse MakeRequest(HttpRequest request);
 
 public:
-	static String Get(String url);
-
 	/**
 	 * \brief Performs a synchronous HTTP GET Request
 	 * \param request 
 	 * \return 
 	 */
 	static HttpResponse Get(HttpRequest request);
+
+	/**
+	 * \brief Performs a synchronous HTTP POST Request
+	 * \param request 
+	 * \return 
+	 */
+	static HttpResponse Post(HttpRequest request);
 };
 
 

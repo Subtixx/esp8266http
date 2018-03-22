@@ -1,18 +1,73 @@
-#include <map>
-
-#include <ESP8266WiFi.h>
-
 #include "ESP8266Http.h"
 
-String Esp8266Http::Get(String url)
+HttpResponse Esp8266Http::Post(HttpRequest request)
 {
-	/*WiFiClient client;
-	if(!client.connect())*/
+	return MakeRequest(request);
+	/*
+	WiFiClient client;
+	if (!client.connect(request.Host.c_str(), request.Port))
+	{
+		Serial.println("[Esp8266Http]: Host unreachable");
+		return HttpResponse();
+	}
+	client.print("POST " + request.Path + " HTTP/1.1\r\n");
+	client.print("Host: " + request.Host + "\r\n");
+	for (std::pair<const String, String> headerPair : request.Headers)
+	{
+		client.print(headerPair.first + ": " + headerPair.second + "\r\n");
+	}
+
+	client.print("\r\n");
+
+	client.print(request.QueryString);
+
+	unsigned long requestSend = millis();
+	while (client.available() == 0) {
+		if (millis() - requestSend > request.Timeout) {
+			Serial.println("[Esp8266Http]: Connection to host timed out");
+			client.stop();
+			return HttpResponse();
+		}
+	}
+
+	HttpResponse httpResponse;
+
+	String responseStatusCode = client.readStringUntil('\r');
+	httpResponse.StatusCode = ParseResponse(responseStatusCode);
+
+#ifdef _DEBUG
+	Serial.println("[Esp8266Http]: Response code: " + httpResponse.StatusCode);
+#endif
+
+	while (client.available()) {
+		String headerLine = client.readStringUntil('\r');
+#ifdef _DEBUG
+		Serial.println("[Esp8266Http]: Parsing header: " + headerLine);
+#endif
+
+		size_t pos = headerLine.indexOf(": ");
+		if (pos == -1)
+			break;
+#ifdef _DEBUG
+		Serial.println("[Esp8266Http]: Header: " + headerLine.substring(0, pos) + " - Value: " + headerLine.substring(pos + 2));
+#endif
+		httpResponse.Headers.insert(std::pair<String, String>(headerLine.substring(0, pos), headerLine.substring(pos + 2)));
+	}
+	httpResponse.Body = client.readStringUntil('\r');
+#ifdef _DEBUG
+	Serial.println("[Esp8266Http]: Body: " + httpResponse.Body);
+#endif
+	client.stop();
+	return httpResponse;
+	*/
 }
 
 HttpResponse Esp8266Http::Get(HttpRequest request)
 {
-	WiFiClient client;
+	return MakeRequest(request);
+
+	#ifdef ARDUINO_ARCH_ESP8266
+	/*WiFiClient client;
 	if(!client.connect(request.Host.c_str(), request.Port))
 	{
 		Serial.println("[Esp8266Http]: Host unreachable");
@@ -65,6 +120,8 @@ HttpResponse Esp8266Http::Get(HttpRequest request)
 #endif
 	client.stop();
 	return httpResponse;
+	*/
+	#endif
 
 	/*
 	WiFi connected
@@ -90,19 +147,93 @@ HttpResponse Esp8266Http::Get(HttpRequest request)
 	[Esp8266Http]: Parsing header: 
 
 	[Esp8266Http]: Body: 
-	1.1
+	1.1
 	 */
 }
+
+HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
+{
+	WiFiClient client;
+	if (!client.connect(request.Host.c_str(), request.Port))
+	{
+		Serial.println("[Esp8266Http]: Host " + request.Host + " (Port: " + request.Port + ") unreachable");
+		return HttpResponse();
+	}
+
+	if (request.Type == 1)
+	{
+		client.print(String("POST ") + request.Path + " HTTP/1.1\r\n");
+	}
+	else
+		client.print(String("GET ") + request.Path + "?" + request.QueryString + " HTTP/1.1\r\n");
+
+	client.print("Host: " + request.Host + "\r\n");
+	for (std::pair<const String, String> headerPair : request.Headers)
+	{
+		client.print(headerPair.first + ": " + headerPair.second + "\r\n");
+	}
+
+	client.print("Connection: close\r\n\r\n");
+
+	if (request.Type == 1)
+	{
+		client.print(request.QueryString);
+	}
+
+	unsigned long requestSend = millis();
+	while (client.available() == 0)
+	{
+		if (millis() - requestSend > request.Timeout)
+		{
+			Serial.println("[Esp8266Http]: Connection to host timed out");
+			client.stop();
+			return HttpResponse();
+		}
+	}
+
+	HttpResponse httpResponse;
+
+	String responseStatusCode = client.readStringUntil('\r');
+	httpResponse.StatusCode = ParseResponse(responseStatusCode);
+
+	#ifdef _DEBUG
+	Serial.println("[Esp8266Http]: Response code: " + httpResponse.StatusCode);
+	#endif
+
+	while (client.available())
+	{
+		String headerLine = client.readStringUntil('\r');
+		#ifdef _DEBUG
+		Serial.println("[Esp8266Http]: Parsing header: " + headerLine);
+		#endif
+
+		size_t pos = headerLine.indexOf(": ");
+		if (pos == -1)
+			break;
+		#ifdef _DEBUG
+		Serial.println("[Esp8266Http]: Header: " + headerLine.substring(0, pos) + " - Value: " + headerLine.substring(pos + 2));
+		#endif
+		httpResponse.Headers.insert(std::pair<String, String>(headerLine.substring(0, pos), headerLine.substring(pos + 2)));
+	}
+	httpResponse.Body = client.readStringUntil('\r');
+	#ifdef _DEBUG
+	Serial.println("[Esp8266Http]: Body: " + httpResponse.Body);
+	#endif
+	client.stop();
+	return httpResponse;
+}
+
 
 String Esp8266Http::ParseResponse(String response)
 {
 	// HTTP/1.1 200 OK
 	// HTTP/1.1 500 Internal Server Error
-	int found = 0;
 	int maxIndex = response.length() - 1;
 
-	for (int i = 0; i <= maxIndex; i++) {
-		if (response.charAt(i) == ' ' || i == maxIndex) {
+	for (int i = 0; i <= maxIndex; i++)
+	{
+		if (response.charAt(i) == ' ' || i == maxIndex)
+		{
 			return response.substring(i + 1, i + 1 + 3);
 		}
 	}
