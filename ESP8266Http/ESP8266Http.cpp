@@ -235,6 +235,17 @@ HttpResponse Esp8266Http::Request(HttpRequest request)
 		httpResponse.Headers.insert(std::pair<String, String>(headerLine.substring(0, pos), headerLine.substring(pos + 2)));
 	}
 	httpResponse.Body = client.readStringUntil('\r');
+
+#ifdef _DEBUG
+	if(httpResponse.Headers.count("Content-Length") == 1)
+	{
+		if(httpResponse.Body.length() != httpResponse.Headers["Content-Length"].toInt())
+		{
+			Serial.println("[Esp8266Http]: Content length doesn't match body length");
+		}
+	}
+#endif
+
 	#ifdef _DEBUG
 	Serial.println("[Esp8266Http]: Body: " + httpResponse.Body);
 	#endif

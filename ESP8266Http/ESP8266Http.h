@@ -45,7 +45,7 @@ private:
 	void ParseUrl(String url)
 	{
 		String host;
-		int port;
+		int port = 80;
 		String path;
 		String body;
 
@@ -53,8 +53,10 @@ private:
 		if (url.startsWith("http://"))
 			url = url.substring(7, url.length());
 
-		if (url.startsWith("https://"))
+		if (url.startsWith("https://")) {
 			url = url.substring(8, url.length());
+			port = 443;
+		}
 
 		// google.com:8080/api/request/1
 #ifdef _DEBUG
@@ -84,8 +86,6 @@ private:
 
 			// google.com
 			host = url.substring(0, indexOfFirstSlash);
-
-			port = 80;
 
 			// /api/request/1
 			path = url.substring(indexOfFirstSlash, url.length());
