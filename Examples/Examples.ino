@@ -2,12 +2,13 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266Http.h>
 
+// This should contain 2 defines for WIFI_SSID and WIFI_PASS
 #include "WiFiCredentials.h"
 
-void setup() {
-	Serial.begin(115200);
-	delay(10);
-	
+#pragma region WiFi Connection
+// Code in here is just for the connection to your WiFi
+void ConnectToWiFi()
+{
 	Serial.println();
 	Serial.println();
 	Serial.print("Connecting to ");
@@ -25,11 +26,31 @@ void setup() {
 	Serial.println("WiFi connected");
 	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
+}
+#pragma endregion
 
-	//HttpResponse response = Esp8266Http::Post(HttpRequest("192.168.178.26", 80, "/api.php", {}, String("ver=1.1")));
-	HttpResponse response = Esp8266Http::Post(HttpRequest(HttpRequest::RequestType::POST, "http://192.168.178.26:80/api.php?ver=1.1", std::map<String, String>()));
+void setup() {
+	Serial.begin(115200);
+	delay(10);
+	ConnectToWiFi();
+
+	// This request is synchronous.
+	HttpResponse response = Esp8266Http::Request(
+		HttpRequest(
+			HttpRequest::GET, // Specifies that this should be a GET request.
+			"https://api.ipify.org" // Specifies the URL where it should make the request to.
+		)
+	);
+
+	if (response.StatusCode == 200) { // Was request successful?
+		// Prints out your IP
+		Serial.println(response.Body);
+	}
+	else {
+		Serial.println("There was an error trying to reach the server.");
+		if(response.StatusCode < 0) // If there was an error while connecting (Timeout or Unknown host) then body contains an error message.
+			Serial.println(response.Body);
+	}
 }
 
-void loop() {
-  
-}
+void loop(){}

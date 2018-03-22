@@ -2,7 +2,7 @@
 
 HttpResponse Esp8266Http::Post(HttpRequest request)
 {
-	return MakeRequest(request);
+	return Request(request);
 	/*
 	WiFiClient client;
 	if (!client.connect(request.Host.c_str(), request.Port))
@@ -64,7 +64,7 @@ HttpResponse Esp8266Http::Post(HttpRequest request)
 
 HttpResponse Esp8266Http::Get(HttpRequest request)
 {
-	return MakeRequest(request);
+	return Request(request);
 
 	#ifdef ARDUINO_ARCH_ESP8266
 	/*WiFiClient client;
@@ -151,7 +151,7 @@ HttpResponse Esp8266Http::Get(HttpRequest request)
 	 */
 }
 
-HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
+HttpResponse Esp8266Http::Request(HttpRequest request)
 {
 #ifdef _DEBUG
 	Serial.print("[Esp8266Http]: Making HTTP ");
@@ -170,7 +170,7 @@ HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 	if (!client.connect(request.Host.c_str(), request.Port))
 	{
 		Serial.println("[Esp8266Http]: Host " + request.Host + " (Port: " + String(request.Port) + ") unreachable");
-		return HttpResponse();
+		return HttpResponse(-1, "Host unreachable");
 	}
 
 	if (request.Type == HttpRequest::POST)
@@ -203,7 +203,7 @@ HttpResponse Esp8266Http::MakeRequest(HttpRequest request)
 		{
 			Serial.println("[Esp8266Http]: Connection to host timed out");
 			client.stop();
-			return HttpResponse();
+			return HttpResponse(-2, "Host timed out");
 		}
 	}
 

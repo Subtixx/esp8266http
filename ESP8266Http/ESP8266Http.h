@@ -91,6 +91,11 @@ private:
 			path = url.substring(indexOfFirstSlash, url.length());
 		}
 
+		if(path.indexOf("/") == -1)
+		{
+			path = "/" + path;
+		}
+
 		// /api/request?test=t
 		if(path.indexOf("?") != -1)
 		{
@@ -145,7 +150,7 @@ public:
 	{
 	}
 
-	HttpRequest(String host, int port, String path, std::map<String, String> headers, int timeout = 5000) :
+	HttpRequest(String host, int port, String path, std::map<String, String> headers = std::map<String, String>(), int timeout = 5000) :
 		HttpRequest(GET, host, port, path, headers, "", timeout)
 	{
 	}
@@ -156,7 +161,7 @@ public:
 	{
 	}
 
-	HttpRequest(RequestType type, String url, std::map<String, String> headers, int timeout = 5000) :
+	HttpRequest(RequestType type, String url, std::map<String, String> headers = std::map<String, String>(), int timeout = 5000) :
 		HttpRequest(type, "", 80, "", headers, "", timeout)
 	{
 		ParseUrl(url);
@@ -178,13 +183,13 @@ public:
 struct HttpResponse
 {
 	/**
-	 * \brief An HTTP Status code (-1 when Response is invalid)
+	 * \brief An HTTP Status code (-1 When host is unreachable, and -2 if host timed out.)
 	 * \see https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 	 */
 	int StatusCode;
 
 	/**
-	 * \brief The body of the response
+	 * \brief The body of the response or the error message.
 	 */
 	String Body;
 
@@ -200,6 +205,10 @@ struct HttpResponse
 	{
 	}
 
+	HttpResponse(int statusCode, String body) : HttpResponse(statusCode, body, {})
+	{
+	}
+
 	HttpResponse() : HttpResponse(-1, "", {})
 	{
 	}
@@ -207,8 +216,6 @@ struct HttpResponse
 
 class Esp8266Http
 {
-	static HttpResponse MakeRequest(HttpRequest request);
-
 public:
 	/**
 	 * \brief Performs a synchronous HTTP GET Request
@@ -223,6 +230,11 @@ public:
 	 * \return 
 	 */
 	static HttpResponse Post(HttpRequest request);
+
+	/**
+	 * \brief Performs a synchronous HTTP Request
+	 */
+	static HttpResponse Request(HttpRequest request);
 };
 
 
