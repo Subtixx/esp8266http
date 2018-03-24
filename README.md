@@ -31,13 +31,13 @@
 
 By default the library sets the following headers wether you specify it or not:
 
-* User-Agent: ESP8266Http/1.0.0
-* Accept: */*
+* `User-Agent: ESP8266Http/1.0.0`
+* `Accept: */*`
 
 If it's a POST request it also specifies:
 
-* Content-Type: application/x-www-form-urlencoded
-* Content-Length
+* `Content-Type: application/x-www-form-urlencoded`
+* `Content-Length`
 
 For more in-depth examples look in the [examples folder](https://github.com/Subtixx/esp8266http/blob/master/examples/)
 
@@ -61,7 +61,7 @@ This will make an HTTP POST Request to https://htttpbin.org/post with `someValue
 ```cpp
 HttpResponse response = Esp8266Http::Request(
     HttpRequest(
-        HttpRequest::POST, // Specifies that this should be a GET request.
+        HttpRequest::POST, // Specifies that this should be a POST request.
         "https://httpbin.org/post?someValue=1024" // Specifies the URL where it should make the request to.
     )
 );
@@ -86,7 +86,7 @@ Sometimes it's necessary to send custom headers like cookies. This example shows
 ```cpp
 HttpResponse response = Esp8266Http::Request(
     HttpRequest(
-        HttpRequest::POST, // Specifies that this should be a GET request.
+        HttpRequest::GET, // Specifies that this should be a GET request.
         "https://httpbin.org/cookies", // Specifies the URL where it should make the request to.
         {
             std::make_pair("Cookie", "logged_in=yes"),
